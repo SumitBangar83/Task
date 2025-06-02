@@ -8,27 +8,40 @@ const JWT_SECRET = "123456"
 
 router.post('/signup',async(req,res)=>{
     
-    const{name,email,password} = req.body;
-    console.log({name,email,password})
+    const{email,password} = req.body;
+    if(!email || !password){
+        return res.status(400).json({message:"All Feilds Required"});
+    }
+    console.log({email,password})
     console.log("request received")
     
     try{
 
         // Check if user exists
         const existingUser = await User.findOne({email});
+        console.log("user :",existingUser )
         if (existingUser) return res.status(404).json({message:"User already exists"});
-
+        console.log("SignUp request recieved")
         // Hash Password
         const hashedPassword = await bcrypt.hash(password, 10);
-
+        
+        const verificationCode = Math.floor(100000 + Math.random() * 900000).toString()
         // Create User 
-        const user = new User({name,email,password:hashedPassword});
-        await user.save();
+        console.log(verificationCode)
+        const user = new User(
+            {
+                email,
+                password:verificationCode,
+                verificationCode
+            });
 
-        res.status(201).json({message:"User Created Successfully"});
+        await user.save();
+        
+        res.status(201).json({message:"User Created Successfully data"});
+        console.log("SignUp request Success")
     }
     catch(err){
-        res.status(500).json({error:"Signup failed"});
+        res.status(500).json({error:"Signup failed from beckend"});
     }
 });
 
@@ -36,12 +49,16 @@ router.post('/signup',async(req,res)=>{
 
 router.post('/login',async(req,res) => {
     const {email,password} = req.body;
-
+    
     try{
         // Check User
-        const user = await User.findOne({email});
+        console.log("SignIn request recieved")
+        if(!email || !password){
+            return res.status(400).json({message:"All Feilds Required"});
+        }
 
-        if(!email) return res.status(404).json({message:"user not found"});
+        const user = await User.findOne({email});
+        if(!user) return res.status(404).json({message:"user not found"});
         
         // compare password
         const isMatch = await bcrypt.compare(password, user.password);
@@ -49,14 +66,16 @@ router.post('/login',async(req,res) => {
 
         // Generate token 
         const token = jwt.sign( {id:user._id}, JWT_SECRET, {expiresIn : '1d'} );
-
+        
         res.status(200).json({token , user:{ id: user._id, name: user.name, email: user.email } });
-
+        console.log("SignIn request Success")
+        
     }
     catch(err){
         res.status(500).json({ error:"login failed"});
+        console.log("Signin req error ")
     }
-
+    
 });
 
 router.delete('/deleteUser', async(req,res)=>{
